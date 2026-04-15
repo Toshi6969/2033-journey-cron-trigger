@@ -1,23 +1,25 @@
 name: 2033 Journey Cron Trigger
 
-# CF-CF ループ問題（Error 1000）を回避するため、CFの外側から /run を叩く。
-# Claude Code Routines はサンドボックスで外部host制限があり不可だった（2026-04-15確認）。
-# GitHub Actions は curl 自由、timeout も長いため確実に動く。
-# 分指定はUTC基準だが、minute単位なのでJSTと同じ扱いで問題なし。
-# GHA cron は最大15分程度の遅延があり得るが許容範囲。
+# 2026-04-15 更新: CF Worker scheduled() (:07) が AI Gateway 経由で
+# 本番稼働する構成に移行。このGHA (:13) は保険として並走する。
+# catchup=1 を付けることで、CF側が :07 で成功していれば
+# last_generated<45分 として skip される（重複生成防止）。
+# CF側が失敗した場合のみ実質的に動作し、復旧時間を最大1時間→最大13分に短縮。
+#
+# GHA cron は最大15分程度の遅延があり得るが、catchup の性質上許容範囲。
 
 on:
   schedule:
-    - cron: '13 * * * *'   # 毎時:13（素数分、Cron crowd timing 回避）
+    - cron: '13 * * * *'   # 毎時:13（素数分、CF :07 の6分後で復旧用）
   workflow_dispatch:        # 手動トリガー（UI or gh CLI から）
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
-    timeout-minutes: 5    # 念のための上限（通常 100秒 前後で完了）
+    timeout-minutes: 5    # 念のための上限（通常 skip なら数秒、実行時は 100秒 前後）
     steps:
-      - name: Trigger 2033 Journey /run
+      - name: Trigger 2033 Journey /run (catchup mode)
         run: |
-          echo "Triggering at $(date -u +%H:%M:%S) UTC"
+          echo "Triggering catchup at $(date -u +%H:%M:%S) UTC"
           curl -sS --max-time 180 -w "\nHTTP:%{http_code} time:%{time_total}s\n" \
-            "https://2033journey.com/run?key=${{ secrets.RUN_KEY }}"
+            "https://2033journey.com/run?key=${{ secrets.RUN_KEY }}&catchup=1"
