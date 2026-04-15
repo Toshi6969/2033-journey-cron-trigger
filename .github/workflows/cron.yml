@@ -10,7 +10,10 @@ name: 2033 Journey Cron Trigger
 
 on:
   schedule:
-    - cron: '13 * * * *'   # 毎時:13（素数分、CF :07 の6分後で復旧用）
+    # 2026-04-15 更新: :13 だと GHA の早出し jitter（-7分観測）で CF :07 を
+    # 追い越してしまい primary に化けるケースが発生。:27 に後退させて CF との
+    # 距離を20分確保し、jitter があっても CF の 2分完走を邪魔しない。
+    - cron: '27 * * * *'   # 毎時:27（素数分、CF :07 から20分後で CF主軸を守る）
   workflow_dispatch:        # 手動トリガー（UI or gh CLI から）
 
 jobs:
