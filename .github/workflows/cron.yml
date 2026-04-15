@@ -1,0 +1,23 @@
+name: 2033 Journey Cron Trigger
+
+# CF-CF ループ問題（Error 1000）を回避するため、CFの外側から /run を叩く。
+# Claude Code Routines はサンドボックスで外部host制限があり不可だった（2026-04-15確認）。
+# GitHub Actions は curl 自由、timeout も長いため確実に動く。
+# 分指定はUTC基準だが、minute単位なのでJSTと同じ扱いで問題なし。
+# GHA cron は最大15分程度の遅延があり得るが許容範囲。
+
+on:
+  schedule:
+    - cron: '13 * * * *'   # 毎時:13（素数分、Cron crowd timing 回避）
+  workflow_dispatch:        # 手動トリガー（UI or gh CLI から）
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5    # 念のための上限（通常 100秒 前後で完了）
+    steps:
+      - name: Trigger 2033 Journey /run
+        run: |
+          echo "Triggering at $(date -u +%H:%M:%S) UTC"
+          curl -sS --max-time 180 -w "\nHTTP:%{http_code} time:%{time_total}s\n" \
+            "https://2033journey.com/run?key=${{ secrets.RUN_KEY }}"
